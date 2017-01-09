@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="stkApp">
+<!-- --------------------------------Header Section------------------------------------------- -->
+<head>
+    <title>Rhea 3.1 Market Suite</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/3.0.3/normalize.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.css">
+    <link data-require="bootstrap-css@*" data-semver="3.3.1" rel="stylesheet"
+          href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" />
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet"
+          integrity="sha384-T8Gy5hrqNKT+hzMclPo118YTQO6cYprQmhrYwIiQ/3axmI1hQomh7Ud2hPOy8SP1" crossorigin="anonymous">
+    <link rel="stylesheet" href="lib/nk-split.css">
+    <link rel="stylesheet" href="lib/font-awesome-animation.css">
+    <link rel="stylesheet" href="main.css">
+</head>
+
+<!-- --------------------------------Main Body Section---------------------------------------- -->
+<body ng-controller="stkCtrl">
+    <!-- top level tab notebook plus icon to far right TODO later add more items like about/help/contact... -->
+    <ul class="nav nav-tabs" id="TAB_WL">
+        <li class="active"><a href="#WL-MGR" data-toggle="tab" style="font-weight: bold;">Watch Lists</a></li>
+        <li><a href="#QUOTE-MGR" data-toggle="tab" style="font-weight: bold;">Historical Quotes</a></li>
+
+        <!-- informational items -->
+        <div class="pull-right">
+            <span style="font-size:x-large; text-align: center; color: red; margin-right: 100px;
+                vertical-align: bottom;">{{ errorMsg }}</span>
+            <span style="color: blue; font-size: 120%; font-weight: bold; margin-bottom: 0;">Rhea 3.2</span>
+            <img src="asset/rhea.jpg" width="35">
+        </div>
+    </ul>
+    <div class="tab-content">
+        <!-- container for watch lists -->
+        <div class="tab-pane active" id="WL-MGR" ng-controller="watchListCtrl">
+            <div class="container-fluid outer-pane" ng-style="{height: contentHeight + 'px'}">
+                <div id="LEFT-PANE" class="split split-horizontal">
+                    <div><h5 class="panel-heading">Watch Lists
+                        <!-- MUST use id for angularJs to look for this anchor -->
+                        <a class="fa fa-external-link-square pull-left faa-bounce animated-hover" id="dld-json" download="WATCH-LIST.json" title="Export watch list to JSON file" ng-click="downloadJson()"></a>
+                        <div class="fa fa-download pull-right faa-vertical animated-hover" ng-click="importJson()" title="Imoprt all lists via JSON file"></div>
+                        <div class="fa fa-save pull-right faa-flash animated-hover" ng-click="persistWatchList()" title="Save watch list in local storage" style="margin-left: 10px;"></div>
+                    </h5></div>
+                    <div class="panel panel-success">
+                        <ul class="list-group" ng-repeat="LIST in watchListCollection">
+                            <li class="list-group-item" ng-class="{active: activeWatchlist == LIST}">
+                                <!-- edit watch list tool -->
+                                <div class="glyphicon glyphicon-edit pull-left" ng-click="editWatchList($index)"
+                                     data-target="#edit-watch-list-name" data-toggle="modal"
+                                     title="Change name"></div>
+
+                                <!-- watch list name, clickable -->
+                                <div style="cursor:pointer; display:inline; margin-left:10px;"
+                                     ng-click="clickWatchList($index)">
+                                    {{ LIST.name }}</div>
+
+                                <!-- delete watch list tool -->
+                                <div class="glyphicon glyphicon-remove-circle pull-right"
+                                     ng-click="removeWatchList($index)"
+                                     title="Delete watch list"></div>
+                            </li>
+                        </ul><!-- END list-group -->
+                        <!-- add watch list tool -->
+                        <div class="pull-right">
+                            <input type="text" placeholder="Enter watch list name" ng-model="watchListEntry"
+                                   ng-keypress="($event.which === 13) ? createWatchlist() : 0" style="width: 120px">
+                            <button class="btn btn-primary btn-sm" ng-click="createWatchlist()">Add</button>
+                            <p ng-show="errorText1" style="color:red;">{{errorText1}}</p>
+                        </div>
+                    </div><!-- END panel -->
+                </div><!-- END left pane -->
+                <div id="RITE-PANE" class="split split-horizontal">
+                    <div id="TOP_PANE" class="split content">
+                        <div> <!-- somehow h5 must be panel-heading not div -->
+                            <h5 class="panel-heading" style="padding: 0;">Quotes:  {{symbolTableTitle}}
+                            <select class="font-small" ng-model="filterPhase" style="margin-left: 150px;">
+                                <option>Any Phase</option>
+                                <option>Bullish Phase</option>
+                                <option>Warning Phase</option>
+                                <option>Recovery Phase</option>
+                                <option>Accumulation Phase</option> </select>
+                            <select class="font-small" ng-model="filterMA">
+                                    <option>None</option>
+                                    <option>50MA</option>
+                                    <option>200MA</option>
+                                </select>
+                            <input type="number" min="0.1" step="0.1" max="50" class="font-small"
+                                   ng-model="filterRange">%
+                            <span class="fa fa-search faa-burst animated-hover" title="Start filtering via criteria"
+                                  ng-click="filterQuotes()" style="margin-left: 5px;"></span>
+                            <span class="fa fa-line-chart faa-pulse animated-hover" title="Vary Chart Size"
+                                  ng-click="cycleChartMode()" style="margin-left: 10px;"></span>
+                            <span class="fa fa-list faa-pulse animated-hover" title="List all symbols from all watch lists"
+                                  ng-click="toggleAllSymbols()" style="margin-left: 10px;"></span>
+                            <span class="fa fa-refresh faa-spin animated-hover"
+                              title="Refresh Quotes" ng-click="refreshQuotes()" style="margin-left: 10px;"></span>
+                            </h5>
+                        </div>
+                        <table class="table table-bordered table-striped table-responsive table-hover">
+                            <thead><tr>
+                                <th></th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'symbol'">Symbol
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'symbol'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'symbol'"></span>
+                                    </a></th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'LastTradePriceOnly'">Price
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'LastTradePriceOnly'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'LastTradePriceOnly'"></span>
+                                    </a></th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'Volume'">Volume
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'Volume'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'Volume'"></span>
+                                    </a></th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'ChangeinPercent'">Change
+                                        <span class="fa fa-caret-down" ng-show="sortType == 'ChangeinPercent' && !sortDir"></span>
+                                        <span class="fa fa-caret-up" ng-show="sortType == 'ChangeinPercent' && sortDir"></span>
+                                    </a></th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'PercentChangeFromFiftydayMovingAverage'">~ 50MA
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'PercentChangeFromFiftydayMovingAverage'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'PercentChangeFromFiftydayMovingAverage'"></span>
+                                    </a></th>
+                                </th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'PercentChangeFromTwoHundreddayMovingAverage'">~ 200MA
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'PercentChangeFromTwoHundreddayMovingAverage'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'PercentChangeFromTwoHundreddayMovingAverage'"></span>
+                                    </a></th>
+                                </th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'PercebtChangeFromYearHigh'">~ High
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'PercebtChangeFromYearHigh'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'PercebtChangeFromYearHigh'"></span>
+                                    </a></th>
+                                </th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'PERatio'">PE
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'PERatio'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'PERatio'"></span>
+                                    </a></th>
+                                </th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'PEGRatio'">PEG
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'PEGRatio'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'PEGRatio'"></span>
+                                    </a></th>
+                                </th>
+                                <th class="text-center">
+                                    <a ng-click="sortDir = !sortDir; sortType = 'ShortRatio'">Short %
+                                        <span class="fa fa-caret-down" ng-show="sortDir && sortType == 'ShortRatio'"></span>
+                                        <span class="fa fa-caret-up" ng-show="!sortDir && sortType == 'ShortRatio'"></span>
+                                    </a></th>
+                                </th>
+                            </tr></thead>
+                            <tbody><tr ng-repeat="QUOTE_OBJ in quoteCollection | orderBy:sortType:sortDir">
+                                <td><span class="glyphicon glyphicon-edit pull-right"
+                                          ng-click="editSymbol(quoteCollection.indexOf(QUOTE_OBJ))"
+                                          data-target="#edit-symbol" data-toggle="modal"
+                                          title="Edit symbol"></span></td>
+                                <td class="info text-center" ng-click="clickSymbol(quoteCollection.indexOf(QUOTE_OBJ))">{{ QUOTE_OBJ.symbol }}
+                                </td>
+                                <td class="text-center">{{ QUOTE_OBJ.LastTradePriceOnly | currency }}</td>
+                                <td class="text-center">{{ QUOTE_OBJ.Volume | number }}</td>
+                                <td class="text-center" ng-class="isPositive(QUOTE_OBJ.ChangeinPercent) ? 'color-green' : 'color-red'">
+                                    {{ toNumber(QUOTE_OBJ.ChangeinPercent) | number : 2 }}%</td>
+                                <td class="text-center">{{ QUOTE_OBJ.PercentChangeFromFiftydayMovingAverage }}</td>
+                                <td class="text-center">{{ QUOTE_OBJ.PercentChangeFromTwoHundreddayMovingAverage }}</td>
+                                <td class="text-center">{{ QUOTE_OBJ.PercebtChangeFromYearHigh }}</td>
+                                <td class="text-center">{{ QUOTE_OBJ.PERatio | number:1 }}</td>
+                                <td class="text-center">{{ QUOTE_OBJ.PEGRatio | number:1 }}</td>
+                                <td class="text-center">{{ QUOTE_OBJ.ShortRatio  | number : 1 }}%</td>
+                                <td>
+                        <span class="glyphicon glyphicon-remove-circle clickable"
+                              ng-click="removeSymbol(quoteCollection.indexOf(QUOTE_OBJ))"
+                              title="Delete symbol"></span>
+                                </td></tr></tbody>
+                        </table>
+                        <!-- add symbol tool -->
+                        <div class="pull-right" ng-show="watchListCollection.length > 0">
+                            <input type="text" placeholder="Enter symbol" ng-model="symbolEntry"
+                                   ng-keypress="handleSymbolKeyPress($event)" style="width: 100px;">
+                            <button class="btn btn-primary btn-sm" ng-click="addSymbol()">Add</button>
+                            <p ng-show="errorText2" style="color:red;">{{errorText2}}</p>
+                        </div>
+                    </div><!-- END top pane -->
+                    <div id="BOTTOM_PANE">
+                        <iframe id="chart-frame" frameborder="0"
+                                ng-src="data/default-chart.html" onload="chartLoaded()">
+                        </iframe>
+                    </div><!-- END bottom pane -->
+                </div>
+            </div>
+        </div>
+
+        <!-- container for quote manager -->
+        <div class="tab-pane" id="QUOTE-MGR" ng-controller="histQuoteCtrl">
+             <!--a title bar with label and search fields -->
+            <nav class="navbar navbar-default" style="min-height: 35px; margin-bottom:0;">
+                <form class="navbar-form">
+                    <label class="font-small">Database Tools:</label>
+                    <input type="text" class="form-control search-form font-small" placeholder="enter symbol"
+                          ng-model="quoteSymbolSearchEntry" style="margin-left:10px;">
+                    <span class="fa fa-search faa-pulse animated-hover" title="Find symbol"
+                          ng-click="findQuoteSymbol()"></span>
+                    <button class="btn btn-primary form-control font-small" ng-click="updateQuotes()"
+                            style="margin-left:20px;margin-right:20px;">Update Quotes</button>
+                    <button class="btn btn-warning form-control font-small" ng-click="deleteSymbols()"
+                            ng-disabled="deleteNone" style="margin-right:20px;">Delete Symbols</button>
+                    <label for="SYMBOL_ENTRY" class="font-small">Symbol(s) to Add:</label>
+                    <input type="text" id="SYMBOL_ENTRY" class="form-control font-small"
+                           placeholder="separate symbols by comma" style="width: 250px;"
+                           ng-model="quoteSymbolEntry">
+                    <span class="fa fa-plus-circle faa-burst animated-hover" title="Download quotes from barchart.com"
+                          ng-click="createQuotes()" style="margin-left: 10px; margin-right:5px;"></span>
+                </form>
+<!-- TODO use pattern to check symbol entry A,B, C,D -->
+            </nav>
+
+            <!-- symbols list (TODO using google materials) -->
+            <div class="col-xs-4 outline" id="QUOTE-SYMBOLS-PANE" style="overflow-y: scroll; padding: 0; margin: 0;">
+                <table class="table table-bordered table-striped table-responsive table-hover"
+                       style="margin-bottom: 0;">
+                    <tbody>
+                    <tr ng-repeat="SUMMARY in histQuoteSummary" ng-class="{active: $index == selectedQuoteSymbolIndex}"
+                        ng-click="refreshChart($index)">
+                        <td>{{ SUMMARY.symbol }}</td>
+                        <td>{{ SUMMARY.count }}</td>
+                        <td>{{ SUMMARY.recentDate }}</td>
+                        <td><input type="checkbox" ng-model="histQuoteSummary[$index].toDelete"
+                                   ng-click="enableDelete($index)"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- the height will be set at the end of page load -->
+            <div class="col-xs-8 outline" id="CHART-QUOTE-PANE" style="overflow-y: scroll; padding: 0;">
+                <div id="HICHART-CANVAS" style="width: 700px;"></div>
+                <table class="table table-responsive table-bordered table-hover table-striped">
+                    <thead><tr><th>Date</th><th>Open</th><th>High</th><th>Low</th><th>Close</th>
+                        <th>Volume</th></tr></thead>
+                    <tbody><tr ng-repeat="QUOTE in histQuotes">
+                        <td>{{ QUOTE.tradingDay }}</td>
+                        <td>{{ QUOTE.open | currency }}</td>
+                        <td>{{ QUOTE.high | currency }}</td>
+                        <td>{{ QUOTE.low | currency }}</td>
+                        <td>{{ QUOTE.close | currency }}</td>
+                        <td>{{ QUOTE.volume | number }}</td>
+                    </tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal dialog 1 for editing watch list items hidden initially -->
+    <div class="modal fade" id="edit-watch-list-name" ng-controller="watchListCtrl">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div style="text-align: center">
+                        <input type="text" placeholder="Enter watch list name" style="width: 200px;"
+                               ng-model="watchListCollection[currentIndex].name" ng-keypress="handleModal1KeyPress($event)">
+                        <button class="btn btn-success" ng-click="hideDialogAndSaveDb1()">Ok</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!-- END modal 1 -->
+
+    <!-- Modal dialog 2 modify symbol items hidden initially -->
+    <div class="modal fade" id="edit-symbol" ng-controller="watchListCtrl">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div style="text-align: center">
+                        <input type="text" placeholder="Enter symbol" style="width: 200px;"
+                               ng-model="tempSymbol" ng-keypress="handleModal2KeyPress($event)">
+                        <button class="btn btn-success" ng-click="hideDialogAndSaveDb2()">Ok</button>
+                        <p style="color: red; font-size: smaller;" ng-show="errorText4">{{errorText4}}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!-- END modal 2 -->
+
+    <!-- TODO Modal dialog for displaying error conditions -->
+    <div class="modal fade" id="ERROR_DIALOG">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body" style="height: 300px; width:400px;">
+                    <h4>{{ errorMessage.title }}</h4>
+                    <p>{{ errorMessage.info }}</p>
+                    <button ng-click="closeModal()">Ok</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- ----------------------------Javascript libraries------------------------- -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+        integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-animate.min.js"></script>
+<script type="text/javascript" src="lib/jstorage.js"></script>
+<script src="lib/split.js"></script>
+<script src="https://code.highcharts.com/stock/highstock.js"></script>
+<script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
+<script src="main.js"></script>
+<script src="watch-list/watch-list.js"></script>
+<script src="hist-quote/hist-quote.js"></script>
+
+</body><!-- END body -->
+</html>
+
+<!--
+data-toggle=tab is necessary for tab to switch back and forth
+
+-->
+
+<!-- TODO Sample for nice search widget
+ <h5 class="navbar-text" style="margin-top:20px; margin-left: 100px; background-color: inherit; color:#550dbb;">-->
+<!--<div class="input-group">-->
+<!--DO NOT NEED TRAILING SLASH "/" As HTML5 FORMS SLASHES ARE NO LONGER REQUIRED-->
+<!--</div>-->
+<!--</form>-->

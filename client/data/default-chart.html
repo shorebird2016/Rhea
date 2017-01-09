@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<body style="margin:0;">
+    <div id="TV_BOX" class="container-fluid">
+    </div>
+
+<script type="text/javascript" src="https://d33t3vvu2t2yu5.cloudfront.net/tv.js"></script>
+<script type="text/javascript">
+    new TradingView.widget( {
+        "container_id": 'TV_BOX',
+//        "width": 800,
+//        "height": 600,
+        "symbol": "AMZN",
+        "interval": "W",
+        "timezone": "America/Los_Angeles",
+        "theme": "White",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": true,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "hideideas": false,
+        "withdateranges": true,
+        "save_image": false,
+        "watchlist": ["AMZN"
+//            "AMZN", "FB", "GOOGL", "AAPL", "BA", "HD", "SBUX", "NKE", "AMGN", "CELG", "MRK"
+        ],
+        "studies" : [ "MASimple@tv-basicstudies", "CCI@tv-basicstudies", "MASimple@tv-basicstudies" ]
+    });
+
+    //TODO other options
+    //        "autosize": true,
+    //        "show_popup_button": true,
+    //        "popup_width": "1000",
+    //        "popup_height": "650",
+</script>
+</body>
+</html>
